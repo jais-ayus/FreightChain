@@ -1,42 +1,45 @@
 let web3;
-let accounts;
+let account; // Use a single account for transactions in this wallet-less setup
 let contract;
 
-// The contract address and ABI will be loaded here after deployment
-const contractAddress = '0x1Eda09B0003e465CA823466407CC44ED3E35fEe8'; // Replace with deployed contract address
+// The contract address and ABI
+const contractAddress = '0xf64E2a1f5a29eBe87c9E0c185540289e34b65898'; // Replace with deployed contract address
 let contractABI; // Load from compiled contract artifact
 
+// *** WARNING: Hardcoding private keys is insecure for production. ***
+// Get a private key from your Ganache accounts for local testing.
+// In Ganache GUI, click the key icon next to an account to get its private key.
+const privateKey = '0x4e60bb08aec67cafa968f142d16b2f152285606747f2e7c345f61c72a3c43511'; // <<< REPLACE WITH GANACHE ACCOUNT PRIVATE KEY
+// ******************************************************************
+
+const ganacheRpcUrl = 'http://127.0.0.1:8545'; // Default Ganache RPC URL
+
 window.addEventListener('load', async () => {
-    // Modern dapp browsers...
-    if (window.ethereum) {
-        web3 = new Web3(window.ethereum);
-        try {
-            // Request account access if needed
-            await window.ethereum.request({ method: 'eth_requestAccounts' });
-            accounts = await web3.eth.getAccounts();
-            document.getElementById('account-address').innerText = accounts[0];
-            document.getElementById('connection-status').innerText = 'Connected';
-            // Load contract ABI and instantiate contract
-            loadContract();
-        } catch (error) {
-            // User denied account access...
-            console.error("User denied account access:", error);
-            document.getElementById('connection-status').innerText = 'Connection Denied';
-        }
-    }
-    // Legacy dapp browsers...
-    else if (window.web3) {
-        web3 = new Web3(window.web3.currentProvider);
-        accounts = await web3.eth.getAccounts();
-        document.getElementById('account-address').innerText = accounts[0];
-        document.getElementById('connection-status').innerText = 'Connected (Legacy)';
+    // Connect directly to Ganache RPC
+    web3 = new Web3(new Web3.providers.HttpProvider(ganacheRpcUrl));
+
+    try {
+        // Get account from private key
+        const accountObject = web3.eth.accounts.privateKeyToAccount(privateKey);
+        account = accountObject.address;
+
+        // Set the default account for interactions
+        web3.eth.defaultAccount = account;
+
+        console.log("Connected directly to RPC.");
+        console.log("Using account:", account);
+
+        // Update status display (optional, simplified)
+        document.getElementById('connection-status').innerText = 'Connected to RPC';
+        document.getElementById('account-address').innerText = account;
+
         // Load contract ABI and instantiate contract
         loadContract();
-    }
-    // Non-dapp browsers...
-    else {
-        console.log('Non-Ethereum browser detected. You should consider trying MetaMask!');
-        document.getElementById('connection-status').innerText = 'No Ethereum Provider';
+
+    } catch (error) {
+        console.error("Failed to connect to RPC or load account:", error);
+        document.getElementById('connection-status').innerText = 'Failed to connect';
+         document.getElementById('account-address').innerText = 'N/A';
     }
 });
 
@@ -53,6 +56,7 @@ async function loadContract() {
              // Initial data load
              fetchAndDisplayVehicles();
              fetchAndDisplayTrips();
+             populateVehicleDropdowns();
         } else {
             console.warn("Contract address not set. Cannot instantiate contract. Please deploy the contract and update contractAddress.");
         }
@@ -62,6 +66,40 @@ async function loadContract() {
         document.getElementById('connection-status').innerText = 'Error loading contract';
     }
 }
+
+// --- Transaction Sending Helper Function ---
+// This function will sign and send transactions manually
+async function sendTransaction(method, params, value = 0) {
+    if (!contract || !account) {
+        console.error("Contract or account not loaded.");
+        return;
+    }
+
+    try {
+        const txObject = {
+            from: account,
+            to: contract.options.address,
+            data: method.encodeABI(...params),
+            value: value,
+            gas: await method.estimateGas(...params, { from: account, value: value })
+        };
+
+        console.log("Sending transaction:", txObject);
+
+        const signedTx = await web3.eth.accounts.signTransaction(txObject, privateKey);
+        console.log("Signed transaction:", signedTx);
+
+        const receipt = await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
+        console.log("Transaction receipt:", receipt);
+
+        return receipt;
+
+    } catch (error) {
+        console.error("Transaction failed:", error);
+        throw error; // Re-throw to be caught by the calling function
+    }
+}
+
 
 // --- Event Listeners for Forms ---
 
@@ -73,7 +111,15 @@ document.getElementById('register-vehicle-form').addEventListener('submit', asyn
     const baseStation = document.getElementById('base-station').value;
 
     if (contract) {
-        await registerVehicle(vehicleIdString, capacity, baseStation);
+        try {
+            await sendTransaction(contract.methods.registerVehicle(vehicleIdString, capacity, baseStation), [vehicleIdString, capacity, baseStation]);
+            // Refresh vehicle list and dropdowns
+            fetchAndDisplayVehicles();
+            populateVehicleDropdowns();
+             alert("Vehicle registered successfully!"); // Simple success feedback
+        } catch (error) {
+             alert("Error registering vehicle. See console for details.");
+        }
     } else {
         console.error("Contract not loaded.");
     }
@@ -89,8 +135,16 @@ document.getElementById('schedule-forward-trip-form').addEventListener('submit',
     const escrowAmount = document.getElementById('forward-escrow').value;
 
     if (contract) {
-        const escrowAmountWei = web3.utils.toWei(escrowAmount, 'ether');
-        await scheduleForwardTrip(vehicleId, origin, destination, cargoWeight, escrowAmountWei);
+        try {
+            const escrowAmountWei = web3.utils.toWei(escrowAmount, 'ether');
+             await sendTransaction(contract.methods.scheduleForwardTrip(vehicleId, origin, destination, cargoWeight), [vehicleId, origin, destination, cargoWeight], escrowAmountWei);
+            // Refresh trip list and vehicle dropdowns
+            fetchAndDisplayTrips();
+            populateVehicleDropdowns();
+             alert("Forward trip scheduled successfully!");
+        } catch (error) {
+             alert("Error scheduling forward trip. See console for details.");
+        }
     } else {
         console.error("Contract not loaded.");
     }
@@ -106,8 +160,16 @@ document.getElementById('schedule-reverse-trip-form').addEventListener('submit',
     const escrowAmount = document.getElementById('reverse-escrow').value;
 
     if (contract) {
-         const escrowAmountWei = web3.utils.toWei(escrowAmount, 'ether');
-        await scheduleReverseTrip(vehicleId, origin, destination, cargoWeight, escrowAmountWei);
+         try {
+             const escrowAmountWei = web3.utils.toWei(escrowAmount, 'ether');
+             await sendTransaction(contract.methods.scheduleReverseTrip(vehicleId, origin, destination, cargoWeight), [vehicleId, origin, destination, cargoWeight], escrowAmountWei);
+            // Refresh trip list and vehicle dropdowns
+            fetchAndDisplayTrips();
+            populateVehicleDropdowns();
+             alert("Reverse trip scheduled successfully!");
+         } catch (error) {
+             alert("Error scheduling reverse trip. See console for details.");
+         }
     } else {
         console.error("Contract not loaded.");
     }
@@ -119,7 +181,15 @@ document.getElementById('admin-assign-reverse-form').addEventListener('submit', 
     const tripId = document.getElementById('admin-assign-reverse-trip-id').value;
 
      if (contract) {
-        await assignVehicleToReverseTrip(tripId);
+         try {
+            await sendTransaction(contract.methods.assignVehicleToReverseTrip(tripId), [tripId]);
+             // Refresh trip list and vehicle dropdowns
+            fetchAndDisplayTrips();
+            populateVehicleDropdowns();
+             alert("Vehicle assigned to reverse trip successfully!");
+         } catch (error) {
+             alert("Error assigning vehicle to reverse trip. See console for details.");
+         }
     } else {
         console.error("Contract not loaded.");
     }
@@ -132,140 +202,52 @@ document.getElementById('admin-mark-delivered-form').addEventListener('submit', 
     const ipfsHash = document.getElementById('admin-mark-delivered-ipfs-hash').value;
 
     if (contract) {
-        // Need to determine if it's a forward or reverse trip to call the correct function
-        // For simplicity now, let's assume the smart contract handles it or we add a check here.
-        // Based on the refactored contract, markForwardTripDelivered takes only tripId,
-        // and markReverseTripDelivered takes tripId and ipfsHash. We'll call markReverseTripDelivered
-        // if ipfsHash is provided, otherwise markForwardTripDelivered.
-         if (ipfsHash) {
-             await markReverseTripDelivered(tripId, ipfsHash);
-         } else {
-             await markForwardTripDelivered(tripId);
-         }
+        try {
+             if (ipfsHash) {
+                 await sendTransaction(contract.methods.markReverseTripDelivered(tripId, ipfsHash), [tripId, ipfsHash]);
+             } else {
+                 await sendTransaction(contract.methods.markForwardTripDelivered(tripId), [tripId]);
+             }
 
+            // Refresh trip list and vehicle list/dropdowns
+            fetchAndDisplayTrips();
+            fetchAndDisplayVehicles();
+            populateVehicleDropdowns();
+             alert("Trip marked delivered successfully!");
+
+        } catch (error) {
+            alert("Error marking trip delivered. See console for details.");
+        }
     } else {
         console.error("Contract not loaded.");
     }
 });
-
-// --- Functions to Interact with Contract ---
-
-async function registerVehicle(vehicleIdString, capacity, baseStation) {
-    console.log("Attempting to register vehicle with ID:", vehicleIdString, "capacity:", capacity, "base station:", baseStation);
-    try {
-        const result = await contract.methods.registerVehicle(vehicleIdString, capacity, baseStation).send({ from: accounts[0] });
-        console.log("Vehicle registered:", result);
-        // Refresh vehicle list and dropdowns
-        fetchAndDisplayVehicles();
-        populateVehicleDropdowns();
-        // TODO: Display success message
-    } catch (error) {
-        console.error("Error registering vehicle:", error);
-        // TODO: Display error message in UI
-    }
-}
-
-async function scheduleForwardTrip(vehicleId, origin, destination, cargoWeight, escrowAmountWei) {
-    console.log(`Attempting to schedule forward trip for vehicle ${vehicleId} from ${origin} to ${destination} with cargo weight ${cargoWeight} and escrow ${web3.utils.fromWei(escrowAmountWei, 'ether')} ETH`);
-    try {
-        const result = await contract.methods.scheduleForwardTrip(vehicleId, origin, destination, cargoWeight).send({
-            from: accounts[0],
-            value: escrowAmountWei
-        });
-        console.log("Forward trip scheduled:", result);
-        // Refresh trip list and vehicle dropdowns
-        fetchAndDisplayTrips();
-        populateVehicleDropdowns();
-        // TODO: Display success message
-    } catch (error) {
-        console.error("Error scheduling forward trip:", error);
-        // TODO: Display error message in UI
-    }
-}
-
-async function assignVehicleToReverseTrip(tripId) {
-     console.log(`Attempting to assign vehicle to reverse trip ${tripId}...`);
-    try {
-        const result = await contract.methods.assignVehicleToReverseTrip(tripId).send({ from: accounts[0] });
-        console.log("Vehicle assigned to reverse trip:", result);
-         // Refresh trip list and vehicle dropdowns
-        fetchAndDisplayTrips();
-        populateVehicleDropdowns();
-        // TODO: Display success message
-    } catch (error) {
-        console.error("Error assigning vehicle to reverse trip:", error);
-        // TODO: Display error message in UI
-    }
-}
-
-async function markForwardTripDelivered(tripId) {
-     console.log(`Attempting to mark forward trip ${tripId} as delivered...`);
-    try {
-        const result = await contract.methods.markForwardTripDelivered(tripId).send({ from: accounts[0] });
-        console.log("Forward trip marked delivered:", result);
-         // Refresh trip list and vehicle list/dropdowns
-        fetchAndDisplayTrips();
-        fetchAndDisplayVehicles();
-        populateVehicleDropdowns();
-        // TODO: Display success message
-    } catch (error) {
-        console.error("Error marking forward trip delivered:", error);
-        // TODO: Display error message in UI
-    }
-}
-
-async function scheduleReverseTrip(vehicleId, origin, destination, cargoWeight, escrowAmountWei) {
-     console.log(`Attempting to schedule reverse trip for vehicle ${vehicleId} from ${origin} to ${destination} with cargo weight ${cargoWeight} and escrow ${web3.utils.fromWei(escrowAmountWei, 'ether')} ETH`);
-    try {
-        const result = await contract.methods.scheduleReverseTrip(vehicleId, origin, destination, cargoWeight).send({
-            from: accounts[0],
-            value: escrowAmountWei
-        });
-        console.log("Reverse trip scheduled:", result);
-        // Refresh trip list and vehicle dropdowns
-        fetchAndDisplayTrips();
-        populateVehicleDropdowns();
-        // TODO: Display success message
-    } catch (error) {
-        console.error("Error scheduling reverse trip:", error);
-        // TODO: Display error message in UI
-    }
-}
-
-async function markReverseTripDelivered(tripId, ipfsHash) {
-    console.log(`Attempting to mark reverse trip ${tripId} as delivered with IPFS hash ${ipfsHash}...`);
-    try {
-        const result = await contract.methods.markReverseTripDelivered(tripId, ipfsHash).send({ from: accounts[0] });
-        console.log("Reverse trip marked delivered:", result);
-        // Refresh trip list and vehicle list/dropdowns
-        fetchAndDisplayTrips();
-        fetchAndDisplayVehicles();
-        populateVehicleDropdowns();
-        // TODO: Display success message and confirm escrow release
-    } catch (error) {
-        console.error("Error marking reverse trip delivered:", error);
-        // TODO: Display error message in UI
-    }
-}
 
 // --- Functions to Fetch and Display Data ---
 
 async function fetchAndDisplayVehicles() {
     if (!contract) return;
     console.log("Fetching vehicles...");
+    const vehicleListDiv = document.getElementById('vehicle-list');
+    vehicleListDiv.innerHTML = ''; // Clear current list
     try {
-        const vehicleListDiv = document.getElementById('vehicle-list');
-        vehicleListDiv.innerHTML = ''; // Clear current list
 
+        console.log("Calling getAllVehicleUintIds...");
         const allVehicleUintIds = await contract.methods.getAllVehicleUintIds().call();
-        
-        if (allVehicleUintIds.length === 0) {
+        console.log("Received vehicle IDs:", allVehicleUintIds);
+
+        if (!allVehicleUintIds || allVehicleUintIds.length === 0) { // Added check for null/undefined
             vehicleListDiv.innerHTML = '<p>No vehicles registered yet.</p>';
+            console.log("No vehicles found.");
             return;
         }
 
+        console.log("Iterating through vehicle IDs...");
         for (const uintId of allVehicleUintIds) {
+            console.log("Fetching vehicle with ID:", uintId);
             const vehicle = await contract.methods.getVehicle(uintId).call();
+            console.log("Received vehicle:", vehicle);
+
             const vehicleDiv = document.createElement('div');
             vehicleDiv.classList.add('vehicle-item');
             vehicleDiv.innerHTML = `
@@ -287,22 +269,28 @@ async function fetchAndDisplayVehicles() {
 async function fetchAndDisplayTrips() {
     if (!contract) return;
      console.log("Fetching trips...");
+    const forwardTripListDiv = document.getElementById('forward-trip-list');
+    const reverseTripListDiv = document.getElementById('reverse-trip-list');
+    forwardTripListDiv.innerHTML = ''; // Clear current list
+    reverseTripListDiv.innerHTML = ''; // Clear current list
     try {
-        const forwardTripListDiv = document.getElementById('forward-trip-list');
-        const reverseTripListDiv = document.getElementById('reverse-trip-list');
-        forwardTripListDiv.innerHTML = ''; // Clear current list
-        reverseTripListDiv.innerHTML = ''; // Clear current list
-
+        console.log("Calling getAllTripIds...");
         const allTripIds = await contract.methods.getAllTripIds().call();
+        console.log("Received trip IDs:", allTripIds);
 
-         if (allTripIds.length === 0) {
+         if (!allTripIds || allTripIds.length === 0) { // Added check for null/undefined
             forwardTripListDiv.innerHTML = '<p>No forward trips scheduled yet.</p>';
             reverseTripListDiv.innerHTML = '<p>No reverse trips scheduled yet.</p>';
+             console.log("No trips found.");
             return;
         }
 
+        console.log("Iterating through trip IDs...");
         for (const tripId of allTripIds) {
+             console.log("Fetching trip with ID:", tripId);
             const trip = await contract.methods.getTrip(tripId).call();
+            console.log("Received trip:", trip);
+
             const tripDiv = document.createElement('div');
             tripDiv.classList.add('trip-item');
             tripDiv.innerHTML = `
@@ -333,8 +321,8 @@ async function fetchAndDisplayTrips() {
 
     } catch (error) {
         console.error("Error fetching trips:", error);
-        forwardTripListDiv.innerHTML = '<p>Error loading trips.</p>';
-        reverseTripListDiv.innerHTML = '<p>Error loading trips.</p>';
+        forwardTripListDiv.innerHTML = '<p>Error loading trips.';
+        reverseTripListDiv.innerHTML = '<p>Error loading trips.';
     }
 }
 
@@ -351,6 +339,11 @@ async function populateVehicleDropdowns() {
 
         const allVehicleUintIds = await contract.methods.getAllVehicleUintIds().call();
 
+        if (!allVehicleUintIds || allVehicleUintIds.length === 0) { // Added check for null/undefined
+             console.log("No vehicles found for dropdown population.");
+            return;
+        }
+
         for (const uintId of allVehicleUintIds) {
             const vehicle = await contract.methods.getVehicle(uintId).call();
 
@@ -363,6 +356,8 @@ async function populateVehicleDropdowns() {
             }
 
             // Populate reverse dropdown (DeliveredForward and not on a reverse trip)
+            // Note: In this wallet-less setup, we assume the hardcoded account is the owner
+            // and can perform all actions, including reverse scheduling after forward.
             if (vehicle.state == getDeliveryStateEnum('DeliveredForward') && vehicle.currentReverseTripId == 0) {
                  const option = document.createElement('option');
                 option.value = vehicle.id;
@@ -390,9 +385,8 @@ function getDeliveryStateEnum(stateString) {
 
 // Populate dropdowns and display lists on initial load
 window.addEventListener('load', async () => {
-    // ... existing web3 connection logic ...
-     // Move initial data load here after contract is potentially loaded
-    // This part is already in loadContract, but adding here for clarity if needed
+    // Web3 connection and contract loading now handled directly
+    // Initial data load is called in loadContract
 });
 
 // Re-run data fetching and dropdown population after contract interactions
@@ -413,7 +407,8 @@ document.getElementById('reverse-vehicle-id').addEventListener('change', async (
             const lastTripId = vehicle.tripHistory[vehicle.tripHistory.length - 1];
             const lastTrip = await contract.methods.getTrip(lastTripId).call();
             // If the last trip was a forward delivery, use its destination as reverse origin
-            if (lastTrip.isForward && lastTrip.deliveryState == getDeliveryStateEnum('DeliveredForward')) {
+            // Also check if the last trip is indeed the one that put the vehicle in DeliveredForward state
+            if (lastTrip.isForward && lastTrip.deliveryState == getDeliveryStateEnum('DeliveredForward') && vehicle.state == getDeliveryStateEnum('DeliveredForward')) {
                 reverseOriginInput.value = lastTrip.destination;
             }
         }
