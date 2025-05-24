@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FreightChain</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1, h2 { color: #333; }
+        form { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input[type="text"], input[type="number"], button { margin-bottom: 10px; padding: 8px; width: calc(100% - 22px); }
+        button { background-color: #5cb85c; color: white; border: none; cursor: pointer; }
+        button:hover { background-color: #4cae4c; }
+        #status { margin-top: 20px; padding: 15px; border: 1px solid #ddd; background-color: #f9f9f9; }
+    </style>
+</head>
+<body>
+    <h1>FreightChain Logistics Platform</h1>
+
+    <section>
+        <h2>Register Vehicle</h2>
+        <form id="register-vehicle-form">
+            <label for="vehicle-capacity">Capacity:</label>
+            <input type="number" id="vehicle-capacity" required>
+            <button type="submit">Register Vehicle</button>
+        </form>
+    </section>
+
+    <section>
+        <h2>Schedule Forward Trip</h2>
+        <form id="schedule-forward-trip-form">
+            <label for="forward-origin">Origin:</label>
+            <input type="text" id="forward-origin" required>
+
+            <label for="forward-destination">Destination:</label>
+            <input type="text" id="forward-destination" required>
+
+            <label for="forward-cargo-weight">Cargo Weight:</label>
+            <input type="number" id="forward-cargo-weight" required>
+
+            <label for="forward-escrow">Escrow Amount (Ether):</label>
+            <input type="number" id="forward-escrow" required>
+
+            <button type="submit">Schedule Forward Trip</button>
+        </form>
+    </section>
+
+    <section>
+        <h2>Admin: Assign Vehicle to Forward Trip</h2>
+        <form id="assign-forward-trip-form">
+            <label for="assign-forward-trip-id">Trip ID:</label>
+            <input type="number" id="assign-forward-trip-id" required>
+
+            <label for="assign-forward-vehicle-id">Vehicle ID:</label>
+            <input type="number" id="assign-forward-vehicle-id" required>
+
+            <button type="submit">Assign Vehicle</button>
+        </form>
+    </section>
+
+    <section>
+        <h2>Admin: Mark Forward Trip Delivered</h2>
+        <form id="mark-forward-delivered-form">
+            <label for="mark-forward-trip-id">Trip ID:</label>
+            <input type="number" id="mark-forward-trip-id" required>
+
+            <button type="submit">Mark Delivered</button>
+        </form>
+    </section>
+
+    <section>
+        <h2>Schedule Reverse Trip</h2>
+        <form id="schedule-reverse-trip-form">
+            <label for="reverse-vehicle-id">Vehicle ID (Completed Forward Trip):</label>
+            <input type="number" id="reverse-vehicle-id" required>
+
+            <label for="reverse-origin">Origin:</label>
+            <input type="text" id="reverse-origin" required>
+
+            <label for="reverse-destination">Destination:</label>
+            <input type="text" id="reverse-destination" required>
+
+            <label for="reverse-cargo-weight">Cargo Weight:</label>
+            <input type="number" id="reverse-cargo-weight" required>
+
+            <label for="reverse-escrow">Escrow Amount (Ether):</label>
+            <input type="number" id="reverse-escrow" required>
+
+            <button type="submit">Schedule Reverse Trip</button>
+        </form>
+    </section>
+
+    <section>
+        <h2>Admin: Assign Vehicle to Reverse Trip</h2>
+        <form id="assign-reverse-trip-form">
+            <label for="assign-reverse-trip-id">Trip ID:</label>
+            <input type="number" id="assign-reverse-trip-id" required>
+
+            <label for="assign-reverse-vehicle-id">Vehicle ID:</label>
+            <input type="number" id="assign-reverse-vehicle-id" required>
+
+            <button type="submit">Assign Vehicle</button>
+        </form>
+    </section>
+
+    <section>
+        <h2>Admin: Mark Reverse Trip Delivered</h2>
+        <form id="mark-reverse-delivered-form">
+            <label for="mark-reverse-trip-id">Trip ID:</label>
+            <input type="number" id="mark-reverse-trip-id" required>
+
+            <label for="reverse-ipfs-hash">IPFS Hash:</label>
+            <input type="text" id="reverse-ipfs-hash" required>
+
+            <button type="submit">Mark Delivered & Release Escrow</button>
+        </form>
+    </section>
+
+    <section>
+        <h2>Status and Information</h2>
+        <div id="status">
+            <p>Connection Status: <span id="connection-status">Loading...</span></p>
+            <p>Account: <span id="account-address">Loading...</span></p>
+            <!-- More status/info can be added here -->
+        </div>
+    </section>
+
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.5.2/dist/web3.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html> 
