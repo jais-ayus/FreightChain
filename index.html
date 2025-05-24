@@ -9,10 +9,12 @@
         h1, h2 { color: #333; }
         form { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; }
         label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input[type="text"], input[type="number"], button { margin-bottom: 10px; padding: 8px; width: calc(100% - 22px); }
+        input[type="text"], input[type="number"], button, select { margin-bottom: 10px; padding: 8px; width: calc(100% - 22px); }
         button { background-color: #5cb85c; color: white; border: none; cursor: pointer; }
         button:hover { background-color: #4cae4c; }
         #status { margin-top: 20px; padding: 15px; border: 1px solid #ddd; background-color: #f9f9f9; }
+        .vehicle-list, .trip-list { margin-top: 20px; }
+        .vehicle-item, .trip-item { border: 1px solid #eee; padding: 10px; margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -21,15 +23,30 @@
     <section>
         <h2>Register Vehicle</h2>
         <form id="register-vehicle-form">
+            <label for="vehicle-id-string">Vehicle ID:</label>
+            <input type="text" id="vehicle-id-string" required>
+
             <label for="vehicle-capacity">Capacity:</label>
             <input type="number" id="vehicle-capacity" required>
+
+            <label for="base-station">Base Station:</label>
+            <input type="text" id="base-station" required>
+
             <button type="submit">Register Vehicle</button>
         </form>
+        <h3>Registered Vehicles</h3>
+        <div id="vehicle-list" class="vehicle-list"></div>
     </section>
 
     <section>
-        <h2>Schedule Forward Trip</h2>
+        <h2>Forward Delivery Scheduling</h2>
         <form id="schedule-forward-trip-form">
+            <label for="forward-vehicle-id">Select Available Vehicle:</label>
+            <select id="forward-vehicle-id" required>
+                <option value="">--Select Vehicle--</option>
+                <!-- Options will be populated by JavaScript -->
+            </select>
+
             <label for="forward-origin">Origin:</label>
             <input type="text" id="forward-origin" required>
 
@@ -44,39 +61,21 @@
 
             <button type="submit">Schedule Forward Trip</button>
         </form>
+         <h3>Forward Trips</h3>
+        <div id="forward-trip-list" class="trip-list"></div>
     </section>
 
     <section>
-        <h2>Admin: Assign Vehicle to Forward Trip</h2>
-        <form id="assign-forward-trip-form">
-            <label for="assign-forward-trip-id">Trip ID:</label>
-            <input type="number" id="assign-forward-trip-id" required>
-
-            <label for="assign-forward-vehicle-id">Vehicle ID:</label>
-            <input type="number" id="assign-forward-vehicle-id" required>
-
-            <button type="submit">Assign Vehicle</button>
-        </form>
-    </section>
-
-    <section>
-        <h2>Admin: Mark Forward Trip Delivered</h2>
-        <form id="mark-forward-delivered-form">
-            <label for="mark-forward-trip-id">Trip ID:</label>
-            <input type="number" id="mark-forward-trip-id" required>
-
-            <button type="submit">Mark Delivered</button>
-        </form>
-    </section>
-
-    <section>
-        <h2>Schedule Reverse Trip</h2>
+        <h2>Reverse Delivery Scheduling</h2>
         <form id="schedule-reverse-trip-form">
-            <label for="reverse-vehicle-id">Vehicle ID (Completed Forward Trip):</label>
-            <input type="number" id="reverse-vehicle-id" required>
+             <label for="reverse-vehicle-id">Select Delivered Vehicle:</label>
+             <select id="reverse-vehicle-id" required>
+                <option value="">--Select Vehicle--</option>
+                <!-- Options will be populated by JavaScript -->
+            </select>
 
-            <label for="reverse-origin">Origin:</label>
-            <input type="text" id="reverse-origin" required>
+            <label for="reverse-origin">Origin (Autofilled):</label>
+            <input type="text" id="reverse-origin" readonly>
 
             <label for="reverse-destination">Destination:</label>
             <input type="text" id="reverse-destination" required>
@@ -89,31 +88,29 @@
 
             <button type="submit">Schedule Reverse Trip</button>
         </form>
+         <h3>Reverse Trips</h3>
+        <div id="reverse-trip-list" class="trip-list"></div>
     </section>
 
     <section>
-        <h2>Admin: Assign Vehicle to Reverse Trip</h2>
-        <form id="assign-reverse-trip-form">
-            <label for="assign-reverse-trip-id">Trip ID:</label>
-            <input type="number" id="assign-reverse-trip-id" required>
-
-            <label for="assign-reverse-vehicle-id">Vehicle ID:</label>
-            <input type="number" id="assign-reverse-vehicle-id" required>
-
-            <button type="submit">Assign Vehicle</button>
+        <h2>Admin Actions</h2>
+        <!-- Separate forms for Admin actions based on Trip ID -->
+         <form id="admin-assign-reverse-form">
+            <h3>Assign Vehicle to Reverse Trip</h3>
+            <label for="admin-assign-reverse-trip-id">Reverse Trip ID:</label>
+            <input type="number" id="admin-assign-reverse-trip-id" required>
+             <button type="submit">Assign Vehicle to Reverse Trip</button>
         </form>
-    </section>
 
-    <section>
-        <h2>Admin: Mark Reverse Trip Delivered</h2>
-        <form id="mark-reverse-delivered-form">
-            <label for="mark-reverse-trip-id">Trip ID:</label>
-            <input type="number" id="mark-reverse-trip-id" required>
+        <form id="admin-mark-delivered-form">
+             <h3>Mark Trip Delivered (Forward or Reverse)</h3>
+            <label for="admin-mark-delivered-trip-id">Trip ID:</label>
+            <input type="number" id="admin-mark-delivered-trip-id" required>
 
-            <label for="reverse-ipfs-hash">IPFS Hash:</label>
-            <input type="text" id="reverse-ipfs-hash" required>
+             <label for="admin-mark-delivered-ipfs-hash">IPFS Hash (for Reverse Trips):</label>
+            <input type="text" id="admin-mark-delivered-ipfs-hash">
 
-            <button type="submit">Mark Delivered & Release Escrow</button>
+            <button type="submit">Mark Delivered</button>
         </form>
     </section>
 
