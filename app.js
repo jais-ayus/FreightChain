@@ -3,7 +3,7 @@ let account; // Use a single account for transactions in this wallet-less setup
 let contract;
 
 // The contract address and ABI
-const contractAddress = '0xf64E2a1f5a29eBe87c9E0c185540289e34b65898'; // Replace with deployed contract address
+const contractAddress = '0x79FfddE658E6BE4241B4F797ed3BB69851e3dc57'; // Updated deployed contract address
 let contractABI; // Load from compiled contract artifact
 
 // *** WARNING: Hardcoding private keys is insecure for production. ***
@@ -175,48 +175,81 @@ document.getElementById('schedule-reverse-trip-form').addEventListener('submit',
     }
 });
 
-// Admin: Assign Vehicle to Reverse Trip
-document.getElementById('admin-assign-reverse-form').addEventListener('submit', async (event) => {
+// Admin: Mark Forward Trip Delivered
+document.getElementById('admin-mark-forward-form').addEventListener('submit', async (event) => {
     event.preventDefault();
-    const tripId = document.getElementById('admin-assign-reverse-trip-id').value;
-
-     if (contract) {
-         try {
-            await sendTransaction(contract.methods.assignVehicleToReverseTrip(tripId), [tripId]);
-             // Refresh trip list and vehicle dropdowns
+    const tripId = document.getElementById('admin-mark-forward-trip-id').value;
+    if (contract) {
+        try {
+            await sendTransaction(contract.methods.markForwardTripDelivered(tripId), [tripId]);
             fetchAndDisplayTrips();
+            fetchAndDisplayVehicles();
             populateVehicleDropdowns();
-             alert("Vehicle assigned to reverse trip successfully!");
-         } catch (error) {
-             alert("Error assigning vehicle to reverse trip. See console for details.");
-         }
+            alert("Forward trip marked delivered successfully!");
+        } catch (error) {
+            alert("Error marking forward trip delivered. See console for details.");
+        }
     } else {
         console.error("Contract not loaded.");
     }
 });
 
-// Admin: Mark Trip Delivered (Forward or Reverse)
-document.getElementById('admin-mark-delivered-form').addEventListener('submit', async (event) => {
+// Admin: Mark Reverse Trip Delivered
+document.getElementById('admin-mark-reverse-form').addEventListener('submit', async (event) => {
     event.preventDefault();
-    const tripId = document.getElementById('admin-mark-delivered-trip-id').value;
-    const ipfsHash = document.getElementById('admin-mark-delivered-ipfs-hash').value;
-
+    const tripId = document.getElementById('admin-mark-reverse-trip-id').value;
+    const ipfsHash = document.getElementById('admin-mark-reverse-ipfs-hash').value;
     if (contract) {
         try {
-             if (ipfsHash) {
-                 await sendTransaction(contract.methods.markReverseTripDelivered(tripId, ipfsHash), [tripId, ipfsHash]);
-             } else {
-                 await sendTransaction(contract.methods.markForwardTripDelivered(tripId), [tripId]);
-             }
-
-            // Refresh trip list and vehicle list/dropdowns
+            await sendTransaction(contract.methods.markReverseTripDelivered(tripId, ipfsHash), [tripId, ipfsHash]);
             fetchAndDisplayTrips();
             fetchAndDisplayVehicles();
             populateVehicleDropdowns();
-             alert("Trip marked delivered successfully!");
-
+            alert("Reverse trip marked delivered successfully!");
         } catch (error) {
-            alert("Error marking trip delivered. See console for details.");
+            alert("Error marking reverse trip delivered. See console for details.");
+        }
+    } else {
+        console.error("Contract not loaded.");
+    }
+});
+
+// Admin: Start Forward Trip
+// Listen for admin start forward trip form submission
+// (new code)
+document.getElementById('admin-start-forward-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const tripId = document.getElementById('admin-start-forward-trip-id').value;
+    if (contract) {
+        try {
+            await sendTransaction(contract.methods.assignVehicleToForwardTrip(tripId), [tripId]);
+            fetchAndDisplayTrips();
+            fetchAndDisplayVehicles();
+            populateVehicleDropdowns();
+            alert("Forward trip started (in transit) successfully!");
+        } catch (error) {
+            alert("Error starting forward trip. See console for details.");
+        }
+    } else {
+        console.error("Contract not loaded.");
+    }
+});
+
+// Admin: Start Reverse Trip
+// Listen for admin start reverse trip form submission
+// (new code)
+document.getElementById('admin-start-reverse-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const tripId = document.getElementById('admin-start-reverse-trip-id').value;
+    if (contract) {
+        try {
+            await sendTransaction(contract.methods.assignVehicleToReverseTrip(tripId), [tripId]);
+            fetchAndDisplayTrips();
+            fetchAndDisplayVehicles();
+            populateVehicleDropdowns();
+            alert("Reverse trip started (in transit) successfully!");
+        } catch (error) {
+            alert("Error starting reverse trip. See console for details.");
         }
     } else {
         console.error("Contract not loaded.");
@@ -225,104 +258,208 @@ document.getElementById('admin-mark-delivered-form').addEventListener('submit', 
 
 // --- Functions to Fetch and Display Data ---
 
-async function fetchAndDisplayVehicles() {
-    if (!contract) return;
-    console.log("Fetching vehicles...");
-    const vehicleListDiv = document.getElementById('vehicle-list');
-    vehicleListDiv.innerHTML = ''; // Clear current list
-    try {
-
-        console.log("Calling getAllVehicleUintIds...");
-        const allVehicleUintIds = await contract.methods.getAllVehicleUintIds().call();
-        console.log("Received vehicle IDs:", allVehicleUintIds);
-
-        if (!allVehicleUintIds || allVehicleUintIds.length === 0) { // Added check for null/undefined
-            vehicleListDiv.innerHTML = '<p>No vehicles registered yet.</p>';
-            console.log("No vehicles found.");
-            return;
+// Helper function to render vehicle table rows in all locations
+function renderVehicleTables(vehicles) {
+    const tableIds = [
+        'vehicle-list-admin'
+    ];
+    for (const id of tableIds) {
+        const tbody = document.getElementById(id);
+        if (!tbody) continue;
+        tbody.innerHTML = '';
+        if (vehicles.length === 0) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td colspan="5" class="text-center text-muted">No vehicles registered yet.</td>`;
+            tbody.appendChild(tr);
+            continue;
         }
-
-        console.log("Iterating through vehicle IDs...");
-        for (const uintId of allVehicleUintIds) {
-            console.log("Fetching vehicle with ID:", uintId);
-            const vehicle = await contract.methods.getVehicle(uintId).call();
-            console.log("Received vehicle:", vehicle);
-
-            const vehicleDiv = document.createElement('div');
-            vehicleDiv.classList.add('vehicle-item');
-            vehicleDiv.innerHTML = `
-                <p><strong>ID:</strong> ${vehicle.vehicleIdString} (Internal: ${vehicle.id})</p>
-                <p><strong>Capacity:</strong> ${vehicle.capacity}</p>
-                <p><strong>State:</strong> ${getDeliveryStateString(vehicle.state)}</p>
-                <p><strong>Base Station:</strong> ${vehicle.baseStation}</p>
-                <p><strong>Trip History:</strong> ${vehicle.tripHistory.join(', ')}</p>
-                <p><strong>Current Reverse Trip:</strong> ${vehicle.currentReverseTripId == 0 ? 'None' : vehicle.currentReverseTripId}</p>
+        for (const vehicle of vehicles) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${vehicle.vehicleIdString} <span class="text-muted small">(ID: ${vehicle.id})</span></td>
+                <td>${vehicle.capacity}</td>
+                <td>${vehicle.baseStation}</td>
+                <td><span class="badge badge-state bg-${getStateColor(vehicle.state)}">${getDeliveryStateString(vehicle.state)}</span></td>
+                <td>${vehicle.tripHistory && vehicle.tripHistory.length > 0 ? vehicle.tripHistory.join(', ') : '<span class="text-muted">None</span>'}</td>
             `;
-            vehicleListDiv.appendChild(vehicleDiv);
+            tbody.appendChild(tr);
         }
-    } catch (error) {
-        console.error("Error fetching vehicles:", error);
-         vehicleListDiv.innerHTML = '<p>Error loading vehicles.</p>';
     }
 }
 
-async function fetchAndDisplayTrips() {
-    if (!contract) return;
-     console.log("Fetching trips...");
-    const forwardTripListDiv = document.getElementById('forward-trip-list');
-    const reverseTripListDiv = document.getElementById('reverse-trip-list');
-    forwardTripListDiv.innerHTML = ''; // Clear current list
-    reverseTripListDiv.innerHTML = ''; // Clear current list
-    try {
-        console.log("Calling getAllTripIds...");
-        const allTripIds = await contract.methods.getAllTripIds().call();
-        console.log("Received trip IDs:", allTripIds);
+// Helper to get color for state badge
+function getStateColor(stateIndex) {
+    // 0:Available, 1:AssignedForward, 2:InTransitForward, 3:DeliveredForward, 4:AssignedReverse, 5:InTransitReverse, 6:DeliveredReverse
+    switch (stateIndex) {
+        case 0: return 'info'; // Available
+        case 1: return 'warning'; // AssignedForward
+        case 2: return 'primary'; // InTransitForward
+        case 3: return 'success'; // DeliveredForward
+        case 4: return 'warning'; // AssignedReverse
+        case 5: return 'primary'; // InTransitReverse
+        case 6: return 'success'; // DeliveredReverse
+        default: return 'secondary';
+    }
+}
 
-         if (!allTripIds || allTripIds.length === 0) { // Added check for null/undefined
-            forwardTripListDiv.innerHTML = '<p>No forward trips scheduled yet.</p>';
-            reverseTripListDiv.innerHTML = '<p>No reverse trips scheduled yet.</p>';
-             console.log("No trips found.");
+// Update fetchAndDisplayVehicles to use the new helper
+async function fetchAndDisplayVehicles() {
+    if (!contract) return;
+    console.log("Fetching vehicles...");
+    try {
+        const allVehicleUintIds = await contract.methods.getAllVehicleUintIds().call();
+        console.log("Received vehicle IDs:", allVehicleUintIds);
+        let vehicles = [];
+        if (!allVehicleUintIds || allVehicleUintIds.length === 0) {
+            renderVehicleTables([]);
+            console.log("No vehicles found.");
             return;
         }
+        for (const uintId of allVehicleUintIds) {
+            const vehicle = await contract.methods.getVehicle(uintId).call();
+            vehicles.push(vehicle);
+        }
+        renderVehicleTables(vehicles);
+    } catch (error) {
+        console.error("Error fetching vehicles:", error);
+        renderVehicleTables([]);
+    }
+}
 
-        console.log("Iterating through trip IDs...");
+// Helper function to populate admin dropdowns for marking trips delivered
+async function populateAdminTripDropdowns() {
+    if (!contract) return;
+    try {
+        const forwardStartSelect = document.getElementById('admin-start-forward-trip-id');
+        const forwardMarkSelect = document.getElementById('admin-mark-forward-trip-id');
+        const reverseStartSelect = document.getElementById('admin-start-reverse-trip-id');
+        const reverseMarkSelect = document.getElementById('admin-mark-reverse-trip-id');
+        forwardStartSelect.innerHTML = '<option value="">--Select Forward Trip--</option>';
+        forwardMarkSelect.innerHTML = '<option value="">--Select Forward Trip--</option>';
+        reverseStartSelect.innerHTML = '<option value="">--Select Reverse Trip--</option>';
+        reverseMarkSelect.innerHTML = '<option value="">--Select Reverse Trip--</option>';
+
+        const allTripIds = await contract.methods.getAllTripIds().call();
         for (const tripId of allTripIds) {
-             console.log("Fetching trip with ID:", tripId);
             const trip = await contract.methods.getTrip(tripId).call();
-            console.log("Received trip:", trip);
-
-            const tripDiv = document.createElement('div');
-            tripDiv.classList.add('trip-item');
-            tripDiv.innerHTML = `
-                <p><strong>Trip ID:</strong> ${trip.id}</p>
-                <p><strong>Type:</strong> ${trip.isForward ? 'Forward' : 'Reverse'}</p>
-                <p><strong>Vehicle Internal ID:</strong> ${trip.vehicleId}</p>
-                <p><strong>Origin:</strong> ${trip.origin}</p>
-                <p><strong>Destination:</strong> ${trip.destination}</p>
-                <p><strong>Cargo Weight:</strong> ${trip.cargoWeight}</p>
-                <p><strong>User:</strong> ${trip.user}</p>
-                <p><strong>Escrow Amount:</strong> ${web3.utils.fromWei(trip.escrowAmount, 'ether')} ETH</p>
-                <p><strong>State:</strong> ${getDeliveryStateString(trip.deliveryState)}</p>
-                <p><strong>IPFS Hash:</strong> ${trip.ipfsHash ? trip.ipfsHash : 'N/A'}</p>
-            `;
-
-            if(trip.isForward) {
-                forwardTripListDiv.appendChild(tripDiv);
-            } else {
-                 reverseTripListDiv.appendChild(tripDiv);
+            // Forward trips in AssignedForward state (for starting)
+            if (trip.isForward && trip.deliveryState == getDeliveryStateEnum('AssignedForward')) {
+                const option = document.createElement('option');
+                option.value = trip.id;
+                option.innerText = `Trip #${trip.id} | Vehicle: ${trip.vehicleId} | ${trip.origin} → ${trip.destination}`;
+                forwardStartSelect.appendChild(option);
+            }
+            // Forward trips in InTransitForward state (for marking delivered)
+            if (trip.isForward && trip.deliveryState == getDeliveryStateEnum('InTransitForward')) {
+                const option = document.createElement('option');
+                option.value = trip.id;
+                option.innerText = `Trip #${trip.id} | Vehicle: ${trip.vehicleId} | ${trip.origin} → ${trip.destination}`;
+                forwardMarkSelect.appendChild(option);
+            }
+            // Reverse trips in AssignedReverse state (for starting)
+            if (!trip.isForward && trip.deliveryState == getDeliveryStateEnum('AssignedReverse')) {
+                const option = document.createElement('option');
+                option.value = trip.id;
+                option.innerText = `Trip #${trip.id} | Vehicle: ${trip.vehicleId} | ${trip.origin} → ${trip.destination}`;
+                reverseStartSelect.appendChild(option);
+            }
+            // Reverse trips in InTransitReverse state (for marking delivered)
+            if (!trip.isForward && trip.deliveryState == getDeliveryStateEnum('InTransitReverse')) {
+                const option = document.createElement('option');
+                option.value = trip.id;
+                option.innerText = `Trip #${trip.id} | Vehicle: ${trip.vehicleId} | ${trip.origin} → ${trip.destination}`;
+                reverseMarkSelect.appendChild(option);
             }
         }
-         if (forwardTripListDiv.innerHTML === '') {
-             forwardTripListDiv.innerHTML = '<p>No forward trips scheduled yet.</p>';
-         }
-          if (reverseTripListDiv.innerHTML === '') {
-             reverseTripListDiv.innerHTML = '<p>No reverse trips scheduled yet.</p>';
-         }
+    } catch (error) {
+        console.error('Error populating admin trip dropdowns:', error);
+    }
+}
 
+// Helper to render forward and reverse trip tables
+function renderForwardTripTable(trips) {
+    const tbody = document.getElementById('forward-trip-list-table');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    if (!trips || trips.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="8" class="text-center text-muted">No forward trips scheduled yet.</td>`;
+        tbody.appendChild(tr);
+        return;
+    }
+    for (const trip of trips) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${trip.id}</td>
+            <td>${trip.vehicleId}</td>
+            <td>${trip.origin}</td>
+            <td>${trip.destination}</td>
+            <td>${trip.cargoWeight}</td>
+            <td><span class="text-truncate" style="max-width:120px;display:inline-block;" title="${trip.user}">${trip.user}</span></td>
+            <td>${web3.utils.fromWei(trip.escrowAmount, 'ether')} ETH</td>
+            <td><span class="badge badge-state bg-${getStateColor(trip.deliveryState)}">${getDeliveryStateString(trip.deliveryState)}</span></td>
+        `;
+        tbody.appendChild(tr);
+    }
+}
+
+function renderReverseTripTable(trips) {
+    const tbody = document.getElementById('reverse-trip-list-table');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    if (!trips || trips.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="9" class="text-center text-muted">No reverse trips scheduled yet.</td>`;
+        tbody.appendChild(tr);
+        return;
+    }
+    for (const trip of trips) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${trip.id}</td>
+            <td>${trip.vehicleId}</td>
+            <td>${trip.origin}</td>
+            <td>${trip.destination}</td>
+            <td>${trip.cargoWeight}</td>
+            <td><span class="text-truncate" style="max-width:120px;display:inline-block;" title="${trip.user}">${trip.user}</span></td>
+            <td>${web3.utils.fromWei(trip.escrowAmount, 'ether')} ETH</td>
+            <td><span class="badge badge-state bg-${getStateColor(trip.deliveryState)}">${getDeliveryStateString(trip.deliveryState)}</span></td>
+            <td>${trip.ipfsHash ? trip.ipfsHash : '<span class="text-muted">N/A</span>'}</td>
+        `;
+        tbody.appendChild(tr);
+    }
+}
+
+// Update fetchAndDisplayTrips to use the new helpers
+async function fetchAndDisplayTrips() {
+    if (!contract) return;
+    console.log("Fetching trips...");
+    let forwardTrips = [];
+    let reverseTrips = [];
+    try {
+        const allTripIds = await contract.methods.getAllTripIds().call();
+        if (!allTripIds || allTripIds.length === 0) {
+            renderForwardTripTable([]);
+            renderReverseTripTable([]);
+            await populateAdminTripDropdowns();
+            return;
+        }
+        for (const tripId of allTripIds) {
+            const trip = await contract.methods.getTrip(tripId).call();
+            if (trip.isForward) {
+                forwardTrips.push(trip);
+            } else {
+                reverseTrips.push(trip);
+            }
+        }
+        renderForwardTripTable(forwardTrips);
+        renderReverseTripTable(reverseTrips);
+        await populateAdminTripDropdowns();
     } catch (error) {
         console.error("Error fetching trips:", error);
-        forwardTripListDiv.innerHTML = '<p>Error loading trips.';
-        reverseTripListDiv.innerHTML = '<p>Error loading trips.';
+        renderForwardTripTable([]);
+        renderReverseTripTable([]);
+        await populateAdminTripDropdowns();
     }
 }
 
@@ -373,14 +510,14 @@ async function populateVehicleDropdowns() {
 
 // Helper function to convert DeliveryState enum index to string
 function getDeliveryStateString(stateIndex) {
-    const states = ["Available", "InTransitForward", "DeliveredForward", "AssignedReverse", "InTransitReverse", "DeliveredReverse"];
+    const states = ["Available", "AssignedForward", "InTransitForward", "DeliveredForward", "AssignedReverse", "InTransitReverse", "DeliveredReverse"];
     return states[stateIndex];
 }
 
 // Helper function to get DeliveryState enum index from string
 function getDeliveryStateEnum(stateString) {
-     const states = {"Available": 0, "InTransitForward": 1, "DeliveredForward": 2, "AssignedReverse": 3, "InTransitReverse": 4, "DeliveredReverse": 5};
-     return states[stateString];
+    const states = {"Available": 0, "AssignedForward": 1, "InTransitForward": 2, "DeliveredForward": 3, "AssignedReverse": 4, "InTransitReverse": 5, "DeliveredReverse": 6};
+    return states[stateString];
 }
 
 // Populate dropdowns and display lists on initial load

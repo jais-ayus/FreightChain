@@ -4,7 +4,7 @@ pragma solidity ^0.8.13;
 contract FreightManager {
     address public owner;
 
-    enum DeliveryState { Available, InTransitForward, DeliveredForward, AssignedReverse, InTransitReverse, DeliveredReverse }
+    enum DeliveryState { Available, AssignedForward, InTransitForward, DeliveredForward, AssignedReverse, InTransitReverse, DeliveredReverse }
 
     struct Vehicle {
         uint id;
@@ -76,16 +76,27 @@ contract FreightManager {
             vehicleId: _vehicleId, // Vehicle assigned directly
             user: msg.sender,
             escrowAmount: msg.value,
-            deliveryState: DeliveryState.InTransitForward, // Starts directly in InTransitForward state
+            deliveryState: DeliveryState.AssignedForward, // Wait for admin to start
             ipfsHash: "",
             isForward: true
         });
 
-        vehicles[_vehicleId].state = DeliveryState.InTransitForward; // Update vehicle state
+        vehicles[_vehicleId].state = DeliveryState.AssignedForward; // Update vehicle state
         vehicles[_vehicleId].tripHistory.push(nextTripId);
 
         emit ForwardTripScheduled(nextTripId, _origin, _destination, _cargoWeight, _vehicleId);
         nextTripId++;
+    }
+
+    function assignVehicleToForwardTrip(uint _tripId) public onlyOwner {
+        require(_tripId > 0 && _tripId < nextTripId, "Invalid trip ID");
+        require(trips[_tripId].isForward, "Trip is not a forward trip");
+        require(trips[_tripId].deliveryState == DeliveryState.AssignedForward, "Forward trip is not pending assignment");
+        uint vehicleId = trips[_tripId].vehicleId;
+        require(vehicles[vehicleId].state == DeliveryState.AssignedForward, "Vehicle state mismatch for forward assignment");
+        trips[_tripId].deliveryState = DeliveryState.InTransitForward;
+        vehicles[vehicleId].state = DeliveryState.InTransitForward;
+        // emit event if needed
     }
 
     function markForwardTripDelivered(uint _tripId) public onlyOwner {
@@ -122,6 +133,7 @@ contract FreightManager {
 
         vehicles[_vehicleId].tripHistory.push(newTripId); // Add reverse trip to vehicle history
         vehicles[_vehicleId].currentReverseTripId = newTripId; // Set current reverse trip ID
+        vehicles[_vehicleId].state = DeliveryState.AssignedReverse; // Set vehicle state for reverse assignment
 
         emit ReverseTripScheduled(newTripId, _vehicleId, _origin, _destination, _cargoWeight);
     }

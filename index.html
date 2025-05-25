@@ -4,126 +4,328 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FreightChain</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        h1, h2 { color: #333; }
-        form { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input[type="text"], input[type="number"], button, select { margin-bottom: 10px; padding: 8px; width: calc(100% - 22px); }
-        button { background-color: #5cb85c; color: white; border: none; cursor: pointer; }
-        button:hover { background-color: #4cae4c; }
-        #status { margin-top: 20px; padding: 15px; border: 1px solid #ddd; background-color: #f9f9f9; }
-        .vehicle-list, .trip-list { margin-top: 20px; }
-        .vehicle-item, .trip-item { border: 1px solid #eee; padding: 10px; margin-bottom: 10px; }
+        html, body {
+            height: 100%;
+        }
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .container {
+            flex: 1 0 auto;
+        }
+        .footer {
+            flex-shrink: 0;
+        }
+        body { background: #f4f6fa; font-size: 1.08rem; }
+        .nav-link.active { font-weight: bold; color: #0d6efd !important; }
+        .section-page { display: none; }
+        .section-page.active { display: block; }
+        .card { box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-radius: 1rem; }
+        .navbar-brand { font-weight: bold; letter-spacing: 1px; }
+        .badge-state { font-size: 0.95em; }
+        .vehicle-table th, .vehicle-table td { vertical-align: middle; }
+        .footer { background: #212529; color: #fff; padding: 1.2rem 0; text-align: center; margin-top: 2rem; border-radius: 0.5rem 0.5rem 0 0; }
+        .form-floating > .form-control, .form-floating > .form-select { height: 3.2rem; }
+        .input-group-text { background: #f8f9fa; }
     </style>
 </head>
 <body>
-    <h1>FreightChain Logistics Platform</h1>
+<nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm mb-4">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="#"><i class="bi bi-truck"></i> FreightChain</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav ms-auto">
+        <li class="nav-item">
+          <a class="nav-link active" href="#" id="nav-register"><i class="bi bi-plus-circle"></i> Vehicle Registration</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#" id="nav-forward"><i class="bi bi-arrow-right-circle"></i> Forward Scheduling</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#" id="nav-reverse"><i class="bi bi-arrow-left-circle"></i> Reverse Scheduling</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#" id="nav-admin"><i class="bi bi-shield-lock"></i> Admin</a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
 
-    <section>
-        <h2>Register Vehicle</h2>
-        <form id="register-vehicle-form">
-            <label for="vehicle-id-string">Vehicle ID:</label>
-            <input type="text" id="vehicle-id-string" required>
-
-            <label for="vehicle-capacity">Capacity:</label>
-            <input type="number" id="vehicle-capacity" required>
-
-            <label for="base-station">Base Station:</label>
-            <input type="text" id="base-station" required>
-
-            <button type="submit">Register Vehicle</button>
-        </form>
-        <h3>Registered Vehicles</h3>
-        <div id="vehicle-list" class="vehicle-list"></div>
-    </section>
-
-    <section>
-        <h2>Forward Delivery Scheduling</h2>
-        <form id="schedule-forward-trip-form">
-            <label for="forward-vehicle-id">Select Available Vehicle:</label>
-            <select id="forward-vehicle-id" required>
-                <option value="">--Select Vehicle--</option>
-                <!-- Options will be populated by JavaScript -->
-            </select>
-
-            <label for="forward-origin">Origin:</label>
-            <input type="text" id="forward-origin" required>
-
-            <label for="forward-destination">Destination:</label>
-            <input type="text" id="forward-destination" required>
-
-            <label for="forward-cargo-weight">Cargo Weight:</label>
-            <input type="number" id="forward-cargo-weight" required>
-
-            <label for="forward-escrow">Escrow Amount (Ether):</label>
-            <input type="number" id="forward-escrow" required>
-
-            <button type="submit">Schedule Forward Trip</button>
-        </form>
-         <h3>Forward Trips</h3>
-        <div id="forward-trip-list" class="trip-list"></div>
-    </section>
-
-    <section>
-        <h2>Reverse Delivery Scheduling</h2>
-        <form id="schedule-reverse-trip-form">
-             <label for="reverse-vehicle-id">Select Delivered Vehicle:</label>
-             <select id="reverse-vehicle-id" required>
-                <option value="">--Select Vehicle--</option>
-                <!-- Options will be populated by JavaScript -->
-            </select>
-
-            <label for="reverse-origin">Origin (Autofilled):</label>
-            <input type="text" id="reverse-origin" readonly>
-
-            <label for="reverse-destination">Destination:</label>
-            <input type="text" id="reverse-destination" required>
-
-            <label for="reverse-cargo-weight">Cargo Weight:</label>
-            <input type="number" id="reverse-cargo-weight" required>
-
-            <label for="reverse-escrow">Escrow Amount (Ether):</label>
-            <input type="number" id="reverse-escrow" required>
-
-            <button type="submit">Schedule Reverse Trip</button>
-        </form>
-         <h3>Reverse Trips</h3>
-        <div id="reverse-trip-list" class="trip-list"></div>
-    </section>
-
-    <section>
-        <h2>Admin Actions</h2>
-        <!-- Separate forms for Admin actions based on Trip ID -->
-         <form id="admin-assign-reverse-form">
-            <h3>Assign Vehicle to Reverse Trip</h3>
-            <label for="admin-assign-reverse-trip-id">Reverse Trip ID:</label>
-            <input type="number" id="admin-assign-reverse-trip-id" required>
-             <button type="submit">Assign Vehicle to Reverse Trip</button>
-        </form>
-
-        <form id="admin-mark-delivered-form">
-             <h3>Mark Trip Delivered (Forward or Reverse)</h3>
-            <label for="admin-mark-delivered-trip-id">Trip ID:</label>
-            <input type="number" id="admin-mark-delivered-trip-id" required>
-
-             <label for="admin-mark-delivered-ipfs-hash">IPFS Hash (for Reverse Trips):</label>
-            <input type="text" id="admin-mark-delivered-ipfs-hash">
-
-            <button type="submit">Mark Delivered</button>
-        </form>
-    </section>
-
-    <section>
-        <h2>Status and Information</h2>
-        <div id="status">
-            <p>Connection Status: <span id="connection-status">Loading...</span></p>
-            <p>Account: <span id="account-address">Loading...</span></p>
-            <!-- More status/info can be added here -->
+<div class="container">
+    <!-- Vehicle Registration Page -->
+    <section id="page-register" class="section-page active">
+        <div class="row justify-content-center">
+            <div class="col-md-7 col-lg-6">
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white"><i class="bi bi-plus-circle"></i> Register Vehicle</div>
+                    <div class="card-body">
+                        <form id="register-vehicle-form">
+                            <div class="form-floating mb-3">
+                                <input type="text" class="form-control" id="vehicle-id-string" placeholder="Vehicle ID" required>
+                                <label for="vehicle-id-string"><i class="bi bi-hash"></i> Vehicle ID</label>
+                            </div>
+                            <div class="form-floating mb-3">
+                                <input type="number" class="form-control" id="vehicle-capacity" placeholder="Capacity" required>
+                                <label for="vehicle-capacity"><i class="bi bi-box"></i> Capacity</label>
+                            </div>
+                            <div class="form-floating mb-3">
+                                <input type="text" class="form-control" id="base-station" placeholder="Base Station" required>
+                                <label for="base-station"><i class="bi bi-geo-alt"></i> Base Station</label>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100"><i class="bi bi-plus-circle"></i> Register Vehicle</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
         </div>
     </section>
 
-    <script src="https://cdn.jsdelivr.net/npm/web3@1.5.2/dist/web3.min.js"></script>
-    <script src="app.js"></script>
+    <!-- Forward Scheduling Page -->
+    <section id="page-forward" class="section-page">
+        <div class="row justify-content-center">
+            <div class="col-md-7 col-lg-6">
+                <div class="card mb-4">
+                    <div class="card-header bg-success text-white"><i class="bi bi-arrow-right-circle"></i> Forward Delivery Scheduling</div>
+                    <div class="card-body">
+                        <form id="schedule-forward-trip-form">
+                            <div class="form-floating mb-3">
+                                <select class="form-select" id="forward-vehicle-id" required>
+                                    <option value="">--Select Vehicle--</option>
+                                </select>
+                                <label for="forward-vehicle-id"><i class="bi bi-truck"></i> Select Available Vehicle</label>
+                            </div>
+                            <div class="form-floating mb-3">
+                                <input type="text" class="form-control" id="forward-origin" placeholder="Origin" required>
+                                <label for="forward-origin"><i class="bi bi-geo"></i> Origin</label>
+                            </div>
+                            <div class="form-floating mb-3">
+                                <input type="text" class="form-control" id="forward-destination" placeholder="Destination" required>
+                                <label for="forward-destination"><i class="bi bi-geo"></i> Destination</label>
+                            </div>
+                            <div class="form-floating mb-3">
+                                <input type="number" class="form-control" id="forward-cargo-weight" placeholder="Cargo Weight" required>
+                                <label for="forward-cargo-weight"><i class="bi bi-box-seam"></i> Cargo Weight</label>
+                            </div>
+                            <div class="input-group mb-3">
+                                <span class="input-group-text"><i class="bi bi-currency-bitcoin"></i></span>
+                                <input type="number" class="form-control" id="forward-escrow" placeholder="Escrow Amount (Ether)" required>
+                            </div>
+                            <button type="submit" class="btn btn-success w-100"><i class="bi bi-arrow-right-circle"></i> Schedule Forward Trip</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row justify-content-center mt-4">
+            <div class="col-12 col-lg-10 mx-auto">
+                <div class="card">
+                    <div class="card-header bg-light"><i class="bi bi-list"></i> Forward Trips</div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Trip ID</th>
+                                        <th>Vehicle</th>
+                                        <th>Origin</th>
+                                        <th>Destination</th>
+                                        <th>Cargo</th>
+                                        <th>User</th>
+                                        <th>Escrow</th>
+                                        <th>State</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="forward-trip-list-table"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Reverse Scheduling Page -->
+    <section id="page-reverse" class="section-page">
+        <div class="row justify-content-center">
+            <div class="col-md-7 col-lg-6">
+                <div class="card mb-4">
+                    <div class="card-header bg-warning text-dark"><i class="bi bi-arrow-left-circle"></i> Reverse Delivery Scheduling</div>
+                    <div class="card-body">
+                        <form id="schedule-reverse-trip-form">
+                            <div class="form-floating mb-3">
+                                <select class="form-select" id="reverse-vehicle-id" required>
+                                    <option value="">--Select Vehicle--</option>
+                                </select>
+                                <label for="reverse-vehicle-id"><i class="bi bi-truck"></i> Select Delivered Vehicle</label>
+                            </div>
+                            <div class="form-floating mb-3">
+                                <input type="text" class="form-control" id="reverse-origin" placeholder="Origin (Autofilled)" readonly>
+                                <label for="reverse-origin"><i class="bi bi-geo"></i> Origin (Autofilled)</label>
+                            </div>
+                            <div class="form-floating mb-3">
+                                <input type="text" class="form-control" id="reverse-destination" placeholder="Destination" required>
+                                <label for="reverse-destination"><i class="bi bi-geo"></i> Destination</label>
+                            </div>
+                            <div class="form-floating mb-3">
+                                <input type="number" class="form-control" id="reverse-cargo-weight" placeholder="Cargo Weight" required>
+                                <label for="reverse-cargo-weight"><i class="bi bi-box-seam"></i> Cargo Weight</label>
+                            </div>
+                            <div class="input-group mb-3">
+                                <span class="input-group-text"><i class="bi bi-currency-bitcoin"></i></span>
+                                <input type="number" class="form-control" id="reverse-escrow" placeholder="Escrow Amount (Ether)" required>
+                            </div>
+                            <button type="submit" class="btn btn-warning w-100"><i class="bi bi-arrow-left-circle"></i> Schedule Reverse Trip</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row justify-content-center mt-4">
+            <div class="col-12 col-lg-10 mx-auto">
+                <div class="card">
+                    <div class="card-header bg-light"><i class="bi bi-list"></i> Reverse Trips</div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Trip ID</th>
+                                        <th>Vehicle</th>
+                                        <th>Origin</th>
+                                        <th>Destination</th>
+                                        <th>Cargo</th>
+                                        <th>User</th>
+                                        <th>Escrow</th>
+                                        <th>State</th>
+                                        <th>IPFS Hash</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="reverse-trip-list-table"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Admin Page -->
+    <section id="page-admin" class="section-page">
+        <div class="row justify-content-center">
+            <div class="col-md-7 col-lg-6">
+                <div class="card mb-3">
+                    <div class="card-header bg-dark text-white"><i class="bi bi-shield-lock"></i> Admin Actions</div>
+                    <div class="card-body">
+                        <form id="admin-start-forward-form" class="mb-3">
+                            <h6 class="mb-2"><i class="bi bi-play-circle"></i> Start Forward Trip</h6>
+                            <div class="mb-2">
+                                <label for="admin-start-forward-trip-id" class="form-label">Select Assigned Forward Trip</label>
+                                <select class="form-select" id="admin-start-forward-trip-id" required>
+                                    <option value="">--Select Forward Trip--</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-outline-primary w-100">Start Forward Trip</button>
+                        </form>
+                        <form id="admin-mark-forward-form" class="mb-3">
+                            <h6 class="mb-2"><i class="bi bi-check-circle"></i> Mark Forward Trip Delivered</h6>
+                            <div class="mb-2">
+                                <label for="admin-mark-forward-trip-id" class="form-label">Select In-Transit Forward Trip</label>
+                                <select class="form-select" id="admin-mark-forward-trip-id" required>
+                                    <option value="">--Select Forward Trip--</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-outline-dark w-100">Mark Forward Trip Delivered</button>
+                        </form>
+                        <form id="admin-start-reverse-form" class="mb-3">
+                            <h6 class="mb-2"><i class="bi bi-play-circle"></i> Start Reverse Trip</h6>
+                            <div class="mb-2">
+                                <label for="admin-start-reverse-trip-id" class="form-label">Select Assigned Reverse Trip</label>
+                                <select class="form-select" id="admin-start-reverse-trip-id" required>
+                                    <option value="">--Select Reverse Trip--</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-outline-primary w-100">Start Reverse Trip</button>
+                        </form>
+                        <form id="admin-mark-reverse-form">
+                            <h6 class="mb-2"><i class="bi bi-check-circle"></i> Mark Reverse Trip Delivered</h6>
+                            <div class="mb-2">
+                                <label for="admin-mark-reverse-trip-id" class="form-label">Select In-Transit Reverse Trip</label>
+                                <select class="form-select" id="admin-mark-reverse-trip-id" required>
+                                    <option value="">--Select Reverse Trip--</option>
+                                </select>
+                            </div>
+                            <div class="mb-2">
+                                <label for="admin-mark-reverse-ipfs-hash" class="form-label">IPFS Hash</label>
+                                <input type="text" class="form-control" id="admin-mark-reverse-ipfs-hash" required>
+                            </div>
+                            <button type="submit" class="btn btn-outline-dark w-100">Mark Reverse Trip Delivered</button>
+                        </form>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header bg-light"><i class="bi bi-info-circle"></i> Status and Information</div>
+                    <div class="card-body">
+                        <p>Connection Status: <span id="connection-status">Loading...</span></p>
+                        <p>Account: <span id="account-address">Loading...</span></p>
+                    </div>
+                </div>
+                <div class="card mt-4">
+                    <div class="card-header bg-light"><i class="bi bi-truck"></i> Registered Vehicles</div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover vehicle-table mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th><i class="bi bi-hash"></i> Vehicle ID</th>
+                                        <th><i class="bi bi-box"></i> Capacity</th>
+                                        <th><i class="bi bi-geo-alt"></i> Base Station</th>
+                                        <th><i class="bi bi-list"></i> State</th>
+                                        <th><i class="bi bi-clock-history"></i> History</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="vehicle-list-admin"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<footer class="footer mt-5">
+    <div class="container">
+        <span>FreightChain &copy; 2024 &mdash; Blockchain Freight Logistics Platform</span>
+    </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/web3@1.5.2/dist/web3.min.js"></script>
+<script src="app.js"></script>
+<script>
+// SPA Navigation logic
+const navLinks = document.querySelectorAll('.nav-link');
+const pages = document.querySelectorAll('.section-page');
+navLinks.forEach(link => {
+    link.addEventListener('click', function(e) {
+        e.preventDefault();
+        navLinks.forEach(l => l.classList.remove('active'));
+        this.classList.add('active');
+        const pageId = this.id.replace('nav-', 'page-');
+        pages.forEach(page => page.classList.remove('active'));
+        document.getElementById(pageId).classList.add('active');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+});
+</script>
 </body>
 </html> 
